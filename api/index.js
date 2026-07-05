@@ -30,28 +30,46 @@ const authMiddleware = require('./middleware/auth');
 app.use('/api/auth', authRouter);
 
 // MongoDB Connection Logic for Serverless
-let isConnected = false;
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 const connectDB = async () => {
-  if (isConnected) return;
+  if (cached.conn) {
+    return cached.conn;
+  }
   if (!mongoUri) {
     console.error("CRITICAL ERROR: MONGODB_URI is empty or undefined!");
-    return;
+    throw new Error("MONGODB_URI is empty or undefined!");
+  }
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+    }).then((mongoose) => {
+      console.log('MongoDB Connected successfully.');
+      return mongoose;
+    });
   }
   try {
-    const db = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    isConnected = db.connections[0].readyState;
-    console.log('MongoDB Connected successfully.');
-  } catch (err) {
-    console.error('MongoDB connection error:', err);
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    console.error('MongoDB connection error:', e);
+    throw e; 
   }
+  return cached.conn;
 };
 
 // Middleware to ensure DB connection before handling any request
 app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    // Agar DB connect nahi hua, toh 500 status code bhej do instead of timing out
+    res.status(500).json({ success: false, error: 'Database connection failed', details: error.message });
+  }
 });
 
 // Telegram Bot Setup
