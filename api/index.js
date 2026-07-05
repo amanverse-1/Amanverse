@@ -29,10 +29,30 @@ const authRouter = require('./auth');
 const authMiddleware = require('./middleware/auth');
 app.use('/api/auth', authRouter);
 
-// MongoDB Connection
-mongoose.connect(mongoUri)
-  .then(() => console.log('MongoDB Connected...'))
-  .catch(err => console.error('MongoDB connection error:', err));
+// MongoDB Connection Logic for Serverless
+let isConnected = false;
+const connectDB = async () => {
+  if (isConnected) return;
+  if (!mongoUri) {
+    console.error("CRITICAL ERROR: MONGODB_URI is empty or undefined!");
+    return;
+  }
+  try {
+    const db = await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+    });
+    isConnected = db.connections[0].readyState;
+    console.log('MongoDB Connected successfully.');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+  }
+};
+
+// Middleware to ensure DB connection before handling any request
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
 
 // Telegram Bot Setup
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
