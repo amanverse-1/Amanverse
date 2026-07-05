@@ -1,27 +1,30 @@
-﻿{
-    "builds":  [
-                   {
-                       "src":  "package.json",
-                       "use":  "@vercel/vite"
-                   },
-                   {
-                       "src":  "api/**/*.js",
-                       "use":  "@vercel/node"
-                   }
-               ],
-    "version":  2,
-    "rewrites":  [
-                     {
-                         "destination":  "/api/",
-                         "source":  "/api/(.*)"
-                     },
-                     {
-                         "destination":  "/admin.html",
-                         "source":  "/admin(.*)"
-                     },
-                     {
-                         "destination":  "/",
-                         "source":  "/(.*)"
-                     }
-                 ]
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily",
+      "schedule": "59 23 * * *"
+    },
+    {
+      "path": "/api/cron/weekly",
+      "schedule": "59 23 * * 0"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/cron/(.*)",
+      "destination": "/api/cron/$1"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/admin(.*)",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
