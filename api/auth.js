@@ -1,32 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
-const Admin = require('./models/Admin');
 
 // Login Route
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Default admin creation logic (for first time setup)
-    let admin = await Admin.findOne({ email });
-    if (!admin && email === 'admin@example.com' && password === 'admin123') {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      admin = new Admin({ email, password: hashedPassword });
-      await admin.save();
-    }
+    // Get Admin Credentials from Environment Variables (with fallback)
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
-    if (!admin) {
+    if (email !== adminEmail || password !== adminPassword) {
       return res.status(401).json({ success: false, error: 'Invalid email or password.' });
     }
 
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
-    }
-
-    const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '1d' });
+    // Generate JWT Token
+    const token = jwt.sign(
+      { email: adminEmail }, 
+      process.env.JWT_SECRET || 'fallback_secret', 
+      { expiresIn: '1d' }
+    );
+    
     res.json({ success: true, token });
   } catch (error) {
     console.error('Login error:', error);
